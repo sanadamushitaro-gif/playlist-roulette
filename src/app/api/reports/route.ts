@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { LIMITS, normalizeOptionalText } from "@/lib/playlist-validation";
-import { createReport, findPlaylistById } from "@/lib/local-store";
+import { createServerSupabaseClient } from "@/lib/supabase";
 
 function isUuid(value: unknown): value is string {
   return (
@@ -33,8 +33,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const playlistId = playlistUuid;
-    const playlist = await findPlaylistById(playlistId);
+    const supabase = createServerSupabaseClient();
+    const { data: playlist, error: lookupError } = await supabase
+      .from("playlists")
+      .select("id")
+      .eq("id", playlistUuid)
+      .maybeSingle();
+
+    if (lookupError) {
+      return NextResponse.json({ error: lookupError.message }, { status: 500 });
+    }
 
     if (!playlist) {
       return NextResponse.json(
@@ -43,10 +51,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const report = await createReport({
-      playlist_id: playlistId,
-      reason: normalizeOptionalText(body.reason, LIMITS.reason),
-    });
+    const { data: report, error } = await supabase
+      .from("reports")
+      .insert({
+        playlist_id: playlistUuid,
+        reason: normalizeOptionalText(body.reason, LIMITS.reason),
+      })
+      .select("id, playlist_id, reason, created_at")
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ report }, { status: 201 });
   } catch (error) {

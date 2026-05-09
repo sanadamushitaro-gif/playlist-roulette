@@ -28,16 +28,26 @@ async function fetchRandomPlaylist(excludeId?: string) {
   return { playlist: data.playlist as Playlist, error: null };
 }
 
+function getYouTubeEmbedUrl(playlistId: string) {
+  return `https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(
+    playlistId,
+  )}`;
+}
+
 export default function Home() {
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [state, setState] = useState<ApiState>("idle");
   const [message, setMessage] = useState("");
+  const [embedUnavailable, setEmbedUnavailable] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportState, setReportState] = useState<"idle" | "sending" | "sent">(
     "idle",
   );
 
-  const applyPlaylistResult = (nextPlaylist: Playlist | null, error: string | null) => {
+  const applyPlaylistResult = (
+    nextPlaylist: Playlist | null,
+    error: string | null,
+  ) => {
     if (error) {
       setMessage(error);
       setState("error");
@@ -57,6 +67,7 @@ export default function Home() {
   const loadPlaylist = async () => {
     setState("loading");
     setMessage("");
+    setEmbedUnavailable(false);
     setReportState("idle");
     setReportReason("");
 
@@ -147,15 +158,34 @@ export default function Home() {
 
               <div className="aspect-video w-full bg-zinc-950">
                 {playlist && state === "ready" ? (
-                  <iframe
-                    className="h-full w-full"
-                    src={`https://www.youtube.com/embed/videoseries?list=${encodeURIComponent(
-                      playlist.playlist_id,
-                    )}`}
-                    title={playlist.title ?? "YouTube playlist"}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
+                  <div className="relative h-full w-full">
+                    <iframe
+                      key={playlist.id}
+                      className="h-full w-full"
+                      src={getYouTubeEmbedUrl(playlist.playlist_id)}
+                      title={playlist.title ?? "YouTube playlist"}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      onError={() => setEmbedUnavailable(true)}
+                    />
+                    {embedUnavailable ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-zinc-950/95 px-5 text-center text-white">
+                        <p className="text-sm font-bold">
+                          このプレイリストは埋め込み再生できない可能性があります。
+                        </p>
+                        <a
+                          href={playlist.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex min-h-10 items-center gap-2 border-2 border-white bg-[#e8ff5a] px-4 py-2 text-sm font-black text-zinc-950"
+                        >
+                          YouTubeで開く
+                          <ExternalLink size={15} aria-hidden />
+                        </a>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="flex h-full items-center justify-center px-5 text-center font-mono text-sm text-zinc-300">
                     {state === "loading" && "ランダムな扉を開いています..."}
@@ -211,6 +241,9 @@ export default function Home() {
                   YouTubeで開く
                   <ExternalLink size={15} aria-hidden />
                 </a>
+                <p className="text-xs leading-5 text-zinc-500">
+                  動画によっては、権利設定や地域制限により外部サイトで再生できないことがあります。
+                </p>
 
                 <div className="border-t-2 border-dashed border-zinc-300 pt-4">
                   <label

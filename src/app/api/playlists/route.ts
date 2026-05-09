@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
-import {
-  createPlaylist,
-  findPlaylistByPlaylistId,
-  listVisiblePlaylists,
-} from "@/lib/local-store";
 import { normalizePlaylistPayload } from "@/lib/playlist-validation";
+import { createServerSupabaseClient } from "@/lib/supabase";
+
+const PLAYLIST_COLUMNS =
+  "id, playlist_id, url, title, description, tags, created_at, is_hidden";
 
 export async function GET() {
   try {
-    const playlists = await listVisiblePlaylists();
+    const supabase = createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from("playlists")
+      .select(PLAYLIST_COLUMNS)
+      .eq("is_hidden", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-    return NextResponse.json({ playlists });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ playlists: data ?? [] });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Server error" },
@@ -38,7 +47,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    const existing = await findPlaylistByPlaylistId(result.playlist.playlist_id);
+    const supabase = createServerSupabaseClient();
+    const { data: existing, error: lookupError } = await supabase
+      .from("playlists")
+      .select("id")
+      .eq("playlist_id", result.playlist.playlist_id)
+      .maybeSingle();
+
+    if (lookupError) {
+      return NextResponse.json({ error: lookupError.message }, { status: 500 });
+    }
 
     if (existing) {
       return NextResponse.json(
@@ -47,16 +65,27 @@ export async function POST(request: Request) {
       );
     }
 
-    const { playlist, duplicate } = await createPlaylist(result.playlist);
+    const { data, error } = await supabase
+      .from("playlists")
+      .insert(result.playlist)
+      .select(PLAYLIST_COLUMNS)
+      .single();
 
-    if (duplicate || !playlist) {
+    if (error) {
+      const status = error.code === "23505" ? 409 : 500;
+
       return NextResponse.json(
-        { error: "この再生リストはすでに登録されています。" },
-        { status: 409 },
+        {
+          error:
+            error.code === "23505"
+              ? "この再生リストはすでに登録されています。"
+              : error.message,
+        },
+        { status },
       );
     }
 
-    return NextResponse.json({ playlist }, { status: 201 });
+    return NextResponse.json({ playlist: data }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Server error" },
