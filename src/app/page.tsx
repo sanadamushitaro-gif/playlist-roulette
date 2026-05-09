@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { AlertTriangle, Dice5, ExternalLink, Loader2, Send } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BannerAd } from "@/components/banner-ad";
 import type { Playlist } from "@/types/database";
 
 type ApiState = "idle" | "loading" | "ready" | "empty" | "error";
@@ -112,8 +111,6 @@ export default function Home() {
             登録する
           </Link>
         </header>
-
-        <BannerAd className="mt-5" />
 
         <div className="grid flex-1 items-center gap-6 py-8 lg:grid-cols-[1fr_360px]">
           <section className="min-w-0">

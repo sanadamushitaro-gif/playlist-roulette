@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowLeft, Loader2, Send } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { BannerAd } from "@/components/banner-ad";
 
 type SubmitState = "idle" | "sending" | "success" | "error";
 
@@ -66,8 +65,6 @@ export default function SubmitPage() {
         </header>
 
         <section className="grid flex-1 content-center gap-6 py-8">
-          <BannerAd />
-
           <div>
             <h1 className="text-3xl font-black leading-tight tracking-normal sm:text-5xl">
               誰かに届いてほしい再生リストを登録する。
