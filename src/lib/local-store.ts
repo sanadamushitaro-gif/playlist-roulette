@@ -8,7 +8,11 @@ type LocalDatabase = {
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "local-db.json");
+const WRITABLE_DATA_DIR =
+  process.env.VERCEL === "1"
+    ? path.join("/tmp", "playlist-roulette")
+    : DATA_DIR;
+const DATA_FILE = path.join(WRITABLE_DATA_DIR, "local-db.json");
 
 async function readDatabase(): Promise<LocalDatabase> {
   try {
@@ -25,7 +29,7 @@ async function readDatabase(): Promise<LocalDatabase> {
 }
 
 async function writeDatabase(database: LocalDatabase) {
-  await mkdir(DATA_DIR, { recursive: true });
+  await mkdir(WRITABLE_DATA_DIR, { recursive: true });
   await writeFile(DATA_FILE, `${JSON.stringify(database, null, 2)}\n`, "utf8");
 }
 
